@@ -2,10 +2,11 @@ services:
   # Web Service
   - type: web
     name: bollywood-buzz
-    env: node
+    env: web
     plan: free
-    buildCommand: "npm install"
-    startCommand: "npm start"
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
