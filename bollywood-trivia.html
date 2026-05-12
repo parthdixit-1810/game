@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bollywood Buzz - Multiplayer Trivia Game</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding-top: 40px;
+        }
+
+        .container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Film Strip Decoration */
+        .filmstrip {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            background: linear-gradient(90deg, #d4af37 0%, #f0e68c 25%, #d4af37 50%, #f0e68c 75%, #d4af37 100%);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .filmstrip::before,
+        .filmstrip::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: #8b0000;
+        }
+
+        .filmstrip::before {
+            top: 13px;
+        }
+
+        .filmstrip::after {
+            bottom: 13px;
+        }
+
+        .filmstrip-dot {
+            width: 15px;
+            height: 15px;
+            background: #333;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Screen Management */
+        .screen {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Landing Screen */
+        .landing-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            gap: 30px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #d4af37;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        .tagline {
+            font-size: 1.2rem;
+            color: #f0e68c;
+            margin-bottom: 40px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        button {
+            padding: 16px 32px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-height: 48px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d4af37, #f0e68c);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6);
+        }
+
+        .btn-secondary {
+            background: #8b0000;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(139, 0, 0, 0.4);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 0, 0, 0.6);
+        }
+
+        .btn-tertiary {
+            background: transparent;
+            color: #d4af37;
+            border: 2px solid #d4af37;
+            margin-top: 20px;
+        }
+
+        .btn-tertiary:hover {
+            background: #d4af37;
+            color: #000;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Input Fields */
+        input {
+            padding: 12px 16px;
+            border: 2px solid #d4af37;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 300px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #f0e68c;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Game Header */
+        .game-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            align-items: center;
+            background: rgba(139, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #d4af37;
+        }
+
+        .score-display {
+            text-align: center;
+        }
+
+        .player-name {
+            font-size: 0.9rem;
+            color: #d4af37;
+            margin-bottom: 5px;
+        }
+
+        .score {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f0e68c;
+            animation: pulse 0.6s ease-in-out;
+        }
+
+        .round-info {
+            text-align: center;
+            color: #f0e68c;
+        }
+
+        .round-info .label {
+            font-size: 0.9rem;
+            color: #d4af37;
+            margin-bottom: 5px;
+        }
+
+        .timer {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            color: #d4af37;
+        }
+
+        .timer.warning {
+            color: #ff6b6b;
+            animation: pulse 0.5s infinite;
+        }
+
+        /* Question Screen */
+        .game-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            gap: 20px;
+        }
+
+        .question-container {
+            background: rgba(139, 0, 0, 0.3);
+            padding: 30px;
+            border-radius: 12px;
+            border-left: 6px solid #d4af37;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .category-badge {
+            display: inline-block;
+            background: #d4af37;
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .question-text {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 15px 0;
+            color: #fff;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        @media (min-width: 600px) {
+            .options-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .option {
+            padding: 16px;
+            background: rgba(212, 175, 55, 0.1);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-weight: 500;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .option:hover:not(:disabled) {
+            background: rgba(212, 175, 55, 0.3);
+            border-color: #f0e68c;
+            transform: translateY(-2px);
+        }
+
+        .option:disabled {
+            cursor: not-allowed;
+        }
+
+        .option.correct {
+            background: #27ae60;
+            border-color: #27ae60;
+            color: #fff;
+        }
+
+        .option.wrong {
+            background: #e74c3c;
+            border-color: #e74c3c;
+            color: #fff;
+        }
+
+        .option.disabled-option {
+            opacity: 0.6;
+        }
+
+        /* Result Overlay */
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 20px;
+            display: none;
+        }
+
+        .result-overlay.active {
+            display: flex;
+        }
+
+        .result-box {
+            background: rgba(26, 26, 46, 0.95);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            border: 3px solid #d4af37;
+            max-width: 500px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .result-message {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #f0e68c;
+            font-weight: 600;
+        }
+
+        .correct-answer {
+            background: rgba(39, 174, 96, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #27ae60;
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .score-update {
+            font-size: 1.2rem;
+            margin: 20px 0;
+            color: #d4af37;
+        }
+
+        .ready-button-group {
+            margin-top: 20px;
+        }
+
+        .btn-ready {
+            background: #d4af37;
+            color: #000;
+            padding: 14px 32px;
+            font-weight: 600;
+            min-height: 48px;
+        }
+
+        .btn-ready:disabled {
+            background: #999;
+            opacity: 0.7;
+        }
+
+        .waiting-message {
+            font-size: 1.1rem;
+            color: #d4af37;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Reconnecting Screen */
+        .reconnecting-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            gap: 20px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(212, 175, 55, 0.3);
+            border-top: 4px solid #d4af37;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Waiting Screen */
+        .waiting-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            gap: 20px;
+        }
+
+        .code-display {
+            font-size: 2.5rem;
+            font-family: 'Courier New', monospace;
+            color: #d4af37;
+            letter-spacing: 5px;
+            padding: 20px;
+            background: rgba(139, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 2px dashed #d4af37;
+            margin: 20px 0;
+        }
+
+        /* Names Screen */
+        .names-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            gap: 20px;
+        }
+
+        .name-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .name-label {
+            font-size: 1.1rem;
+            color: #d4af37;
+            font-weight: 600;
+        }
+
+        /* Round Winner Screen */
+        .round-winner-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            gap: 20px;
+        }
+
+        .winner-card {
+            background: rgba(139, 0, 0, 0.4);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            border: 3px solid #d4af37;
+            max-width: 500px;
+        }
+
+        .winner-title {
+            font-size: 1.5rem;
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+
+        .winner-name {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #f0e68c;
+            margin-bottom: 30px;
+        }
+
+        .dare-section {
+            background: rgba(212, 175, 55, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #d4af37;
+        }
+
+        .dare-label {
+            font-size: 0.9rem;
+            color: #d4af37;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .dare-text {
+            font-size: 1.2rem;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .rounds-tracker {
+            font-size: 1.1rem;
+            color: #f0e68c;
+            margin-bottom: 20px;
+        }
+
+        /* Game Over Screen */
+        .game-over-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            gap: 20px;
+        }
+
+        .game-over-card {
+            background: rgba(139, 0, 0, 0.4);
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            border: 3px solid #d4af37;
+            max-width: 600px;
+        }
+
+        .game-over-title {
+            font-size: 2rem;
+            color: #d4af37;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .champion-name {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #f0e68c;
+            margin-bottom: 30px;
+        }
+
+        .final-scores {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            gap: 20px;
+        }
+
+        .final-score-item {
+            flex: 1;
+        }
+
+        .final-score-name {
+            font-size: 1.1rem;
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+
+        .final-score-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f0e68c;
+        }
+
+        /* How to Play Screen */
+        .how-to-play-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: auto;
+            gap: 20px;
+            padding: 40px 20px;
+        }
+
+        .how-to-content {
+            background: rgba(139, 0, 0, 0.3);
+            padding: 30px;
+            border-radius: 12px;
+            border-left: 6px solid #d4af37;
+            max-width: 700px;
+            text-align: left;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .how-to-content h2 {
+            color: #d4af37;
+            margin: 20px 0 10px 0;
+            font-size: 1.3rem;
+        }
+
+        .how-to-content p {
+            color: #fff;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .how-to-content ol, .how-to-content ul {
+            margin-left: 20px;
+            color: #fff;
+            line-height: 1.8;
+        }
+
+        .back-button {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 200px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 2rem;
+            }
+
+            .tagline {
+                font-size: 1rem;
+            }
+
+            .game-header {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .question-container {
+                padding: 20px;
+            }
+
+            .question-text {
+                font-size: 1.2rem;
+            }
+
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .option {
+                font-size: 0.95rem;
+            }
+
+            .timer {
+                font-size: 2rem;
+            }
+
+            .code-display {
+                font-size: 2rem;
+            }
+        }
+
+        /* Utility Classes */
+        .center {
+            text-align: center;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Film Strip -->
+    <div class="filmstrip">
+        <div class="filmstrip-dot"></div>
+        <div class="filmstrip-dot"></div>
+        <div class="filmstrip-dot"></div>
+        <div class="filmstrip-dot"></div>
+        <div class="filmstrip-dot"></div>
+    </div>
+
+    <div class="container">
+        <!-- Landing Screen -->
+        <div class="screen landing-screen active">
+            <div class="logo">🎬 BOLLYWOOD BUZZ 🎬</div>
+            <div class="tagline">The Ultimate Multiplayer Trivia Game</div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="createGame()">Create Game</button>
+                <button class="btn-primary" onclick="showJoinScreen()">Join Game</button>
+                <button class="btn-tertiary" onclick="showHowToPlay()">How to Play</button>
+            </div>
+        </div>
+
+        <!-- Reconnecting Screen -->
+        <div class="screen reconnecting-screen">
+            <div class="spinner"></div>
+            <p>Reconnecting to game...</p>
+        </div>
+
+        <!-- Waiting Screen (Waiting for opponent) -->
+        <div class="screen waiting-screen">
+            <h2>Share this code with your friend</h2>
+            <div class="code-display" id="roomCodeDisplay"></div>
+            <p>Waiting for opponent to join...</p>
+            <div class="spinner"></div>
+            <button class="btn-secondary" onclick="backToHome()">Back to Home</button>
+        </div>
+
+        <!-- Join Game Screen -->
+        <div class="screen" id="joinScreen">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; max-width: 400px;">
+                <h2 style="color: #d4af37;">Enter Game Code</h2>
+                <input type="text" id="joinCode" placeholder="Enter 4-digit code" maxlength="4" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;">
+                <button class="btn-primary" onclick="joinGame()">Join Game</button>
+                <button class="btn-secondary" onclick="backToHome()">Back</button>
+            </div>
+        </div>
+
+        <!-- Names Screen -->
+        <div class="screen names-screen" id="namesScreen">
+            <h2 style="color: #d4af37; margin-bottom: 20px;">Enter Your Name</h2>
+            <div class="name-input-group">
+                <label class="name-label">Your Name</label>
+                <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+            </div>
+            <div id="opponentNameDisplay" style="margin: 20px 0; color: #f0e68c; font-size: 1.1rem;">
+                Waiting for opponent...
+            </div>
+            <button class="btn-primary" id="startGameButton" onclick="startGame()" disabled>Start Game</button>
+            <button class="btn-secondary" onclick="backToHome()" style="margin-top: 10px;">Back</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div class="screen game-screen" id="gameScreen">
+            <div class="game-header">
+                <div class="score-display">
+                    <div class="player-name" id="p1NameHeader">Player 1</div>
+                    <div class="score" id="p1ScoreDisplay">0</div>
+                </div>
+
+                <div class="round-info">
+                    <div class="label">Round Info</div>
+                    <div id="roundDisplay" style="font-size: 1.1rem; margin-bottom: 5px;">Round 1</div>
+                    <div id="firstToDisplay" style="color: #d4af37;">First to 7</div>
+                </div>
+
+                <div class="score-display">
+                    <div class="player-name" id="p2NameHeader">Player 2</div>
+                    <div class="score" id="p2ScoreDisplay">0</div>
+                </div>
+            </div>
+
+            <div class="timer" id="timerDisplay">15</div>
+
+            <div class="question-container">
+                <div class="category-badge" id="categoryBadge">Film Trivia</div>
+                <div class="question-text" id="questionText">Loading question...</div>
+                <div class="options-grid" id="optionsGrid">
+                    <button class="option" onclick="submitAnswer(0)">Option 1</button>
+                    <button class="option" onclick="submitAnswer(1)">Option 2</button>
+                    <button class="option" onclick="submitAnswer(2)">Option 3</button>
+                    <button class="option" onclick="submitAnswer(3)">Option 4</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Overlay -->
+        <div class="result-overlay" id="resultOverlay">
+            <div class="result-box">
+                <div class="result-message" id="resultMessage">Correct!</div>
+                <div class="correct-answer" id="correctAnswerDisplay">The correct answer is: Answer</div>
+                <div class="score-update" id="scoreUpdateDisplay">Your score: 1</div>
+                <div class="ready-button-group">
+                    <button class="btn-ready" id="readyButton" onclick="playerReady()">Ready for Next?</button>
+                    <div class="waiting-message" id="waitingMessage" style="display: none;">Waiting for opponent...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Round Winner Screen -->
+        <div class="screen round-winner-screen" id="roundWinnerScreen">
+            <div class="winner-card">
+                <div class="winner-title">Round Winner!</div>
+                <div class="winner-name" id="roundWinnerName">Player 1</div>
+                <div class="rounds-tracker" id="roundsTracker">Rounds: 1 - 0</div>
+                <div class="dare-section">
+                    <div class="dare-label">Loser's Dare:</div>
+                    <div class="dare-text" id="dareText">Do your best SRK pose and hold it for 10 seconds</div>
+                </div>
+                <button class="btn-primary" onclick="nextRound()" style="margin-top: 20px;">Next Round</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div class="screen game-over-screen" id="gameOverScreen">
+            <div class="game-over-card">
+                <div class="game-over-title">Game Over!</div>
+                <div class="champion-name" id="championName">Player 1</div>
+                <p style="font-size: 1.2rem; color: #f0e68c; margin-bottom: 30px;">🏆 Champion 🏆</p>
+                <div class="final-scores">
+                    <div class="final-score-item">
+                        <div class="final-score-name" id="finalP1Name">Player 1</div>
+                        <div class="final-score-value" id="finalP1Rounds">2</div>
+                        <div style="color: #d4af37; font-size: 0.9rem;">Rounds Won</div>
+                    </div>
+                    <div class="final-score-item">
+                        <div class="final-score-name" id="finalP2Name">Player 2</div>
+                        <div class="final-score-value" id="finalP2Rounds">1</div>
+                        <div style="color: #d4af37; font-size: 0.9rem;">Rounds Won</div>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="backToHome()">Play Again</button>
+            </div>
+        </div>
+
+        <!-- How to Play Screen -->
+        <div class="screen how-to-play-screen" id="howToPlayScreen">
+            <div class="how-to-content">
+                <h2>How to Play Bollywood Buzz</h2>
+                <p><strong>Objective:</strong> Be the first to win 3 rounds. Each round is first to 7 points.</p>
+
+                <h2>Game Flow</h2>
+                <ol>
+                    <li><strong>Create or Join:</strong> Create a game code or join using an existing code</li>
+                    <li><strong>Enter Names:</strong> Both players enter their names</li>
+                    <li><strong>Answer Questions:</strong> Questions appear one at a time</li>
+                    <li><strong>Score Points:</strong> First to answer correctly gets the point</li>
+                    <li><strong>Readiness Check:</strong> After each question, click "Ready for Next?" to continue</li>
+                    <li><strong>Round Winner:</strong> First to 7 points wins the round and gives loser a dare</li>
+                    <li><strong>Game Winner:</strong> First to win 3 rounds wins the game!</li>
+                </ol>
+
+                <h2>Question Categories</h2>
+                <ul>
+                    <li><strong>Film Trivia:</strong> Questions about Bollywood films, actors, and directors</li>
+                    <li><strong>Song Lyrics:</strong> Complete famous Bollywood song lyrics</li>
+                </ul>
+
+                <h2>Scoring</h2>
+                <p>Each correct answer = 1 point</p>
+                <p>First to 7 points wins the round</p>
+                <p>Loser performs a dare</p>
+
+                <h2>Tips</h2>
+                <ul>
+                    <li>Both players can answer each question</li>
+                    <li>First correct answer wins the point</li>
+                    <li>If both answer wrong, no one gets the point</li>
+                    <li>You have 15 seconds to answer each question</li>
+                    <li>Click "Ready for Next?" after you've seen the result</li>
+                </ul>
+
+                <button class="btn-tertiary back-button" onclick="backToHome()">Back to Home</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== GAME STATE ====================
+        const gameState = {
+            screen: 'landing',
+            isHost: false,
+            peer: null,
+            conn: null,
+            roomCode: '',
+            p1Name: '',
+            p2Name: '',
+            p1Score: 0,
+            p2Score: 0,
+            p1Rounds: 0,
+            p2Rounds: 0,
+            currentRound: 1,
+            usedQuestionIds: new Set(),
+            currentQuestion: null,
+            timerInterval: null,
+            timeLeft: 15,
+            p1Answer: null,
+            p2Answer: null,
+            p1AnswerTime: null,
+            p2AnswerTime: null,
+            p1Ready: false,
+            p2Ready: false,
+            questionAnswered: false,
+            playerNumber: 0, // 1 for player1, 2 for player2
+            gameActive: true,
+            sessionStorageKey: 'bollywood-buzz-state'
+        };
+
+        // ==================== QUESTION & DARE POOLS ====================
+        const questionPool = [
+            // FILM TRIVIA - 125 Questions (2000s onwards)
+            { id: 1, category: "film", question: "Which actor played Aamir in Lagaan?", options: ["Aamir Khan", "Shah Rukh Khan", "Akshay Kumar", "Salman Khan"], correct: 0 },
+            { id: 2, category: "film", question: "Who directed 3 Idiots?", options: ["Rajkumar Hiranyi", "Rajkumar Hirani", "Amir Khan", "Sachin Tendulkar"], correct: 1 },
+            { id: 3, category: "film", question: "Which film won the Filmfare Best Film award in 2010?", options: ["Dev D", "A Wednesday", "3 Idiots", "Ghajini"], correct: 2 },
+            { id: 4, category: "film", question: "In Dil Chahta Hai, what was the profession of Akshay's character?", options: ["Architect", "Painter", "Filmmaker", "Designer"], correct: 2 },
+            { id: 5, category: "film", question: "Who directed Rang De Basanti?", options: ["Aditya Chopra", "Rakesh Omprakash Mehra", "Karan Johar", "Sanjay Leela Bhansali"], correct: 1 },
+            { id: 6, category: "film", question: "Which film features the character 'Circuit'?", options: ["Munnabhai MBBS", "Lage Raho Munnabhai", "3 Idiots", "Munna Bhai Returns"], correct: 0 },
+            { id: 7, category: "film", question: "In Barfi!, what was Barfi's real name?", options: ["Barfee", "Bhaumik Chandragupta", "Barfi Singh", "Bhuvan Arora"], correct: 1 },
+            { id: 8, category: "film", question: "Who played Kabali in the Tamil film Kabali?", options: ["Rajinikanth", "Kamal Haasan", "Surya", "Vishal"], correct: 0 },
+            { id: 9, category: "film", question: "Which film is about the boxer Mahavir Singh Phogat?", options: ["Dangal", "Sultan", "Jai Bhim", "Bhaiyya Ji"], correct: 0 },
+            { id: 10, category: "film", question: "In PK, what was the alien's quest about?", options: ["Finding his mother", "Finding his spaceship remote", "Finding true love", "Finding his father"], correct: 1 },
+            { id: 11, category: "film", question: "Who directed Gangs of Wasseypur?", options: ["Dibakar Banerjee", "Neeraj Pandey", "Vishal Bhardwaj", "Rajkumar Hirani"], correct: 0 },
+            { id: 12, category: "film", question: "Which film stars Deepika Padukone as a deaf character?", options: ["Cocktail", "Piku", "xxx", "Padmaavat"], correct: 2 },
+            { id: 13, category: "film", question: "In Zindagi Na Milegi Dobara, what was one of the three activities the friends planned?", options: ["Skydiving", "Bungee jumping", "Rock climbing", "All of the above"], correct: 3 },
+            { id: 14, category: "film", question: "Who played Priya in Jab We Met?", options: ["Deepika Padukone", "Katrina Kaif", "Kareena Kapoor", "Anushka Sharma"], correct: 2 },
+            { id: 15, category: "film", question: "Which film featured the song 'Kal Ho Naa Ho'?", options: ["Kabhi Khushi Kabhie Gham", "Kal Ho Naa Ho", "Kuch Kuch Hota Hai", "Jab We Met"], correct: 1 },
+            { id: 16, category: "film", question: "In Article 15, what position did Ayushmann Khurrana's character hold?", options: ["Police officer", "Journalist", "Teacher", "Lawyer"], correct: 0 },
+            { id: 17, category: "film", question: "Who directed Andhadhun?", options: ["Sriram Raghavan", "Anurag Basu", "Vikramaditya Motwane", "Dibakar Banerjee"], correct: 0 },
+            { id: 18, category: "film", question: "Which film stars Sushant Singh Rajput in his debut role?", options: ["PK", "M.S. Dhoni: The Untold Story", "Kai Po Che", "Detective Byomkesh Bakshy"], correct: 2 },
+            { id: 19, category: "film", question: "In Pad Man, what was the main subject of the film?", options: ["Women's hygiene", "Menstrual hygiene products", "Water conservation", "Women's education"], correct: 1 },
+            { id: 20, category: "film", question: "Which film is about the 2008 Mumbai terror attacks?", options: ["Ajay Devgn", "A Wednesday", "18 Days", "Mumbai Meri Jaan"], correct: 3 },
+            { id: 21, category: "film", question: "In Queen, where does Rani travel after her wedding is called off?", options: ["Paris", "Europe", "USA", "Switzerland"], correct: 1 },
+            { id: 22, category: "film", question: "Who directed Bajrangi Bhaijaan?", options: ["Kabir Khan", "Kabir Lal", "Kabir", "Kabir Bedi"], correct: 0 },
+            { id: 23, category: "film", question: "Which film features Deepika Padukone as Padmavati?", options: ["Bajrangi Bhaijaan", "Padmaavat", "Piku", "Ram Leela"], correct: 1 },
+            { id: 24, category: "film", question: "In Gully Boy, what was Ranveer Singh's character's occupation?", options: ["Street rapper", "Musician", "Actor", "Dancer"], correct: 0 },
+            { id: 25, category: "film", question: "Who played the lead role in Raazi?", options: ["Deepika Padukone", "Alia Bhatt", "Katrina Kaif", "Priyanka Chopra"], correct: 1 },
+            { id: 26, category: "film", question: "Which film is based on the 2001 Gujarat earthquake?", options: ["Sardar", "Bhuj: The Pride of India", "Tere Naam", "Rang De Basanti"], correct: 1 },
+            { id: 27, category: "film", question: "In Kabir Singh, what was Kabir's profession?", options: ["Dancer", "Surgeon", "Actor", "Musician"], correct: 1 },
+            { id: 28, category: "film", question: "Who directed War (2019)?", options: ["Siddharth Anand", "Aditya Chopra", "Karan Johar", "Rajkumar Hirani"], correct: 0 },
+            { id: 29, category: "film", question: "In Pathaan, which country was the main filming location?", options: ["UAE", "Spain", "Turkey", "Morocco"], correct: 1 },
+            { id: 30, category: "film", question: "Which film stars Shah Rukh Khan and Deepika Padukone together?", options: ["Pathaan", "Happy New Year", "Chennai Express", "Jawaan"], correct: 0 },
+            { id: 31, category: "film", question: "In Jawan, Shah Rukh Khan played how many characters?", options: ["One", "Two", "Three", "Four"], correct: 1 },
+            { id: 32, category: "film", question: "Who directed Tumbbad?", options: ["Sohum Shah", "Rahi Anil Barve", "Ayan Mukerji", "Abhishek Chaubey"], correct: 1 },
+            { id: 33, category: "film", question: "Which film features the character 'Happy'?", options: ["Happy New Year", "Happiness", "Happy Bhag Jayegi", "Happy Singh Returns"], correct: 0 },
+            { id: 34, category: "film", question: "In Stree, which male actor played the lead opposite Rajkummar Rao?", options: ["Varun Dhawan", "Rajkummar Rao", "Ayushmann Khurrana", "Siddhant Chaturvedi"], correct: 1 },
+            { id: 35, category: "film", question: "Who played Anjaana in Anjaana Anjaani?", options: ["Ranbir Kapoor", "Deepika Padukone", "Priyanka Chopra", "Katrina Kaif"], correct: 2 },
+            { id: 36, category: "film", question: "Which film is a prequel to Munna Bhai MBBS?", options: ["Lage Raho Munnabhai", "Happy New Year", "Munnabhai Returns", "Papa Kehte Hain"], correct: 0 },
+            { id: 37, category: "film", question: "In Ae Dil Hai Mushkil, what was Ranbir's character's profession?", options: ["Singer", "Photographer", "Actor", "Musician"], correct: 1 },
+            { id: 38, category: "film", question: "Who played Piku's father in Piku?", options: ["Amitabh Bachchan", "Irrfan Khan", "Deepika Padukone", "Anupam Kher"], correct: 0 },
+            { id: 39, category: "film", question: "Which film is based on a true story of Indian soldier Kargil hero?", options: ["Raazi", "URI", "Lakshya", "Kesari"], correct: 1 },
+            { id: 40, category: "film", question: "In Ghajini, what was the lead character's memory condition?", options: ["Amnesia", "Anterograde amnesia", "Retrograde amnesia", "Alzheimer's"], correct: 1 },
+            { id: 41, category: "film", question: "Who directed Ghajini?", options: ["Sooraj Barjatya", "A.R. Murugadoss", "Rajkumar Hirani", "Aditya Chopra"], correct: 1 },
+            { id: 42, category: "film", question: "Which film features the dialogue 'Bhaiyya log'?", options: ["Munnabhai MBBS", "Dev D", "A Wednesday", "Rang De Basanti"], correct: 0 },
+            { id: 43, category: "film", question: "In Yeh Jawaani Hai Deewani, who was Bunny's love interest?", options: ["Priyanka Chopra", "Deepika Padukone", "Anushka Sharma", "Katrina Kaif"], correct: 1 },
+            { id: 44, category: "film", question: "Who played Pihu in Raazi?", options: ["Alia Bhatt", "Meghna Gulzar", "Vicky Kaushal", "Deepika Padukone"], correct: 0 },
+            { id: 45, category: "film", question: "In Drishyam, what was Ajay Devgn's character's profession?", options: ["Fisherman", "Farmer", "Actor", "Taxi driver"], correct: 0 },
+            { id: 46, category: "film", question: "Which actor starred in both Lagaan and Rang De Basanti?", options: ["Aamir Khan", "Amir Khan", "Both A and B", "Neither"], correct: 0 },
+            { id: 47, category: "film", question: "In Kabhi Khushi Kabhie Gham, how many sons did Amitabh's character have?", options: ["One", "Two", "Three", "Four"], correct: 1 },
+            { id: 48, category: "film", question: "Who directed Dil Chahta Hai?", options: ["Aditya Chopra", "Farhan Akhtar", "Karan Johar", "Rajkumar Hirani"], correct: 1 },
+            { id: 49, category: "film", question: "In Khosla Ka Ghosla, what was the main conflict about?", options: ["Business", "Land dispute", "Family drama", "Revenge"], correct: 1 },
+            { id: 50, category: "film", question: "Which film features Nawazuddin Siddiqui as a cricket commentator?", options: ["Badlapur", "Raees", "Thappad", "Haraamkhor"], correct: 1 },
+            { id: 51, category: "film", question: "In Natarang, what was the protagonist's profession?", options: ["Actor", "Theater performer", "Dancer", "Singer"], correct: 1 },
+            { id: 52, category: "film", question: "Who played Chitrangada in Chitrangada: The Crowning Experiment?", options: ["Madhuri Dixit", "Rekha", "Rekha Rao", "Madhuri Dixit Nene"], correct: 0 },
+            { id: 53, category: "film", question: "In Rang De Basanti, which actor played Daljeet?", options: ["Siddharth", "Rajat Barmecha", "Aamir Khan", "R. Madhavan"], correct: 0 },
+            { id: 54, category: "film", question: "Which film is about a deaf and blind girl?", options: ["Laal Ishq", "Margarita With a Straw", "Badhaai Ho", "Thappad"], correct: 1 },
+            { id: 55, category: "film", question: "In Bombay, what was the central theme?", options: ["Love story", "Inter-religion marriage", "Violence", "Politics"], correct: 1 },
+            { id: 56, category: "film", question: "Who played the lead in Runway 34?", options: ["Ajay Devgn", "Rakul Preet Singh", "Amitabh Bachchan", "Tabu"], correct: 0 },
+            { id: 57, category: "film", question: "In Chup, what was the premise of the film?", options: ["Revenge", "Film criticism", "Love story", "Crime thriller"], correct: 1 },
+            { id: 58, category: "film", question: "Which film features Shah Rukh Khan as a dwarf?", options: ["Fan", "Zero", "Dilwale", "Happy New Year"], correct: 1 },
+            { id: 59, category: "film", question: "In Article 15, what case did the police officer investigate?", options: ["Murder", "Missing girls", "Theft", "Fraud"], correct: 1 },
+            { id: 60, category: "film", question: "Who directed Thappad?", options: ["Anurag Basu", "Anubhav Sinha", "Vikramaditya Motwane", "Sanjay Leela Bhansali"], correct: 1 },
+            { id: 61, category: "film", question: "In Badhaai Ho, what was the central revelation?", options: ["Pregnancy", "Divorce", "Job loss", "Infidelity"], correct: 0 },
+            { id: 62, category: "film", question: "Which Salman Khan film features a dog named 'Tuffy'?", options: ["Sultan", "Dabangg", "Bajrangi Bhaijaan", "Ek Tha Tiger"], correct: 2 },
+            { id: 63, category: "film", question: "In Bajrangi Bhaijaan, what was the main plot?", options: ["Love story", "Action movie", "Girl uniting families", "Terrorism"], correct: 2 },
+            { id: 64, category: "film", question: "Who played the female lead in War?", options: ["Deepika Padukone", "Katrina Kaif", "Hrithik Roshan", "Tiger Shroff"], correct: 1 },
+            { id: 65, category: "film", question: "In Jai Bhim, which actor played the lawyer?", options: ["Suriya", "Manoj Bajpayee", "Samuthirakani", "Rajinikanth"], correct: 0 },
+            { id: 66, category: "film", question: "Which film stars Vidya Balan as a single mother?", options: ["Kahaani", "Tumhari Sulu", "The Dirty Picture", "Piku"], correct: 1 },
+            { id: 67, category: "film", question: "In Kahaani, what was the mystery about?", options: ["Murder", "Missing person", "Stolen artifact", "Kidnapping"], correct: 1 },
+            { id: 68, category: "film", question: "Who directed Vishal Bhardwaj's version of Rang De Basanti remake?", options: ["Vishal Bhardwaj", "Rajkumar Hirani", "Meghna Gulzar", "Neeraj Pandey"], correct: 2 },
+            { id: 69, category: "film", question: "In Bewakoofiyaan, what was the main plot?", options: ["Love story", "Comedy", "Action", "Thriller"], correct: 0 },
+            { id: 70, category: "film", question: "Which film features a woman learning to drive?", options: ["Lipstick Under My Burkha", "Pink", "Thappad", "Badhaai Ho"], correct: 0 },
+            { id: 71, category: "film", question: "In Lipstick Under My Burkha, how many female leads were there?", options: ["Two", "Three", "Four", "Five"], correct: 2 },
+            { id: 72, category: "film", question: "Who played the transgender character in Chandni Bar?", options: ["Tabu", "Rekha", "Shabana Azmi", "Smita Patil"], correct: 1 },
+            { id: 73, category: "film", question: "In Pink, what was the central theme?", options: ["Revenge", "Women's rights", "Love story", "Action"], correct: 1 },
+            { id: 74, category: "film", question: "Which film features a mother-daughter relationship in rural India?", options: ["Parched", "Natarang", "Bandit Queen", "Water"], correct: 0 },
+            { id: 75, category: "film", question: "In Udta Punjab, what was the main issue highlighted?", options: ["Drug abuse", "Terrorism", "Poverty", "Crime"], correct: 0 },
+            { id: 76, category: "film", question: "Who directed Udta Punjab?", options: ["Abhishek Chaubey", "Anurag Basu", "Vishal Bhardwaj", "Dibakar Banerjee"], correct: 0 },
+            { id: 77, category: "film", question: "In Jai Bhim, what was the main issue explored?", options: ["Caste discrimination", "Terrorism", "Corruption", "Poverty"], correct: 0 },
+            { id: 78, category: "film", question: "Which film stars Sushant Singh Rajput as a space scientist?", options: ["Chhichhore", "Dil Bechara", "Chichhore", "Raabta"], correct: 0 },
+            { id: 79, category: "film", question: "In Chhichhore, what was the main message?", options: ["Success", "Friendship", "Life lessons", "Love"], correct: 2 },
+            { id: 80, category: "film", question: "Who played Mahendra in Mahendra Nagar?", options: ["Ranbir Kapoor", "Deepika Padukone", "Ranveer Singh", "Varun Dhawan"], correct: 0 },
+            { id: 81, category: "film", question: "In Bajrangi Bhaijaan, from which country was the girl?", options: ["Afghanistan", "Pakistan", "Bangladesh", "Sri Lanka"], correct: 1 },
+            { id: 82, category: "film", question: "Which film features Shahrukh Khan as a ghost?", options: ["Kuch Kuch Hota Hai", "Devdas", "Chakde! India", "Aryan"], correct: 2 },
+            { id: 83, category: "film", question: "In Devdas, what was the female lead's name?", options: ["Paro", "Chandramukhi", "Jeeva", "Aaru"], correct: 0 },
+            { id: 84, category: "film", question: "Who directed Devdas?", options: ["Sanjay Leela Bhansali", "Karan Johar", "Aditya Chopra", "Rajkumar Hirani"], correct: 0 },
+            { id: 85, category: "film", question: "In Goliyon Ki Raasleela Ram-Leela, what was the setting?", options: ["Mumbai", "Delhi", "Varanasi", "Agra"], correct: 2 },
+            { id: 86, category: "film", question: "Who played Prithviraj's wife in Prithviraj?", options: ["Manushi Chhillar", "Kangana Ranaut", "Deepika Padukone", "Katrina Kaif"], correct: 0 },
+            { id: 87, category: "film", question: "In Adipurush, which epic was adapted?", options: ["Ramayana", "Mahabharata", "Bhagavad Gita", "Vedas"], correct: 0 },
+            { id: 88, category: "film", question: "Who directed Adipurush?", options: ["Om Raut", "Ayan Mukerji", "Sanjay Leela Bhansali", "Vishal Bhardwaj"], correct: 0 },
+            { id: 89, category: "film", question: "In Brahmastra, which actor played the lead?", options: ["Ranbir Kapoor", "Deepika Padukone", "Amitabh Bachchan", "Nagarjuna"], correct: 0 },
+            { id: 90, category: "film", question: "Which film is about the 2008 Mumbai attacks?", options: ["Mumbai Meri Jaan", "Raid", "A Wednesday", "18 Days"], correct: 2 },
+            { id: 91, category: "film", question: "In Raid, what was Ajay Devgn's character doing?", options: ["Investigating corruption", "Fighting terrorism", "Solving murder", "Stopping robbery"], correct: 0 },
+            { id: 92, category: "film", question: "Who played the lead in Ayan?", options: ["Hrithik Roshan", "Abhishek Bachchan", "John Abraham", "Saif Ali Khan"], correct: 1 },
+            { id: 93, category: "film", question: "In Chandni, what was the film's famous song?", options: ["Chandni Chowk", "Rang De Basanti", "Mere Piya Gaye Rangoji", "Tum Itna Jo Muskura Rahe Ho"], correct: 2 },
+            { id: 94, category: "film", question: "Which film features a girl learning kung-fu?", options: ["Kung Fu Yoga", "Commando", "Action Jackson", "Alert"], correct: 0 },
+            { id: 95, category: "film", question: "In Tejas, what was the protagonist's occupation?", options: ["Pilot", "Soldier", "Police officer", "Scientist"], correct: 0 },
+            { id: 96, category: "film", question: "Who played the lead in Tejas?", options: ["Kangana Ranaut", "Deepika Padukone", "Vidya Balan", "Priyanka Chopra"], correct: 0 },
+            { id: 97, category: "film", question: "Which film won the National Film Award in 2020?", options: ["Badhaai Ho", "Drishyam", "Article 15", "Gully Boy"], correct: 2 },
+            { id: 98, category: "film", question: "In Margarita With a Straw, what was the protagonist's condition?", options: ["Blindness", "Deafness", "Cerebral palsy", "Paralysis"], correct: 2 },
+            { id: 99, category: "film", question: "Who directed Margarita With a Straw?", options: ["Shonali Bose", "Vishal Bhardwaj", "Vikramaditya Motwane", "Anurag Basu"], correct: 0 },
+            { id: 100, category: "film", question: "In Spotlight, which institution was investigated?", options: ["Church", "Hospital", "School", "Government"], correct: 0 },
+            { id: 101, category: "film", question: "Which Salman Khan film had the most box office collections?", options: ["Bajrangi Bhaijaan", "Sultan", "Tiger Zinda Hai", "Dabangg 3"], correct: 2 },
+            { id: 102, category: "film", question: "In Dabangg, what was Chulbul Pandey's profession?", options: ["Lawyer", "Police officer", "Soldier", "Detective"], correct: 1 },
+            { id: 103, category: "film", question: "Who played Radha in Dabangg?", options: ["Kareena Kapoor", "Deepika Padukone", "Katrina Kaif", "Priyanka Chopra"], correct: 0 },
+            { id: 104, category: "film", question: "In Khiladi, what was Akshay Kumar's character?", options: ["Spy", "Police officer", "Soldier", "Agent"], correct: 0 },
+            { id: 105, category: "film", question: "Which film features Akshay Kumar as a martial artist?", options: ["Khiladi", "Main Khiladi Tu Anari", "Mission Mangal", "Laxmii"], correct: 0 },
+            { id: 106, category: "film", question: "In Housefull, what was the main plot?", options: ["Comedy", "Action", "Love story", "Thriller"], correct: 0 },
+            { id: 107, category: "film", question: "Who played the lead in Housefull?", options: ["Akshay Kumar", "John Abraham", "Ranveer Singh", "Varun Dhawan"], correct: 0 },
+            { id: 108, category: "film", question: "In Entertainment, which actor played the lead?", options: ["Akshay Kumar", "John Abraham", "Ranveer Singh", "Varun Dhawan"], correct: 1 },
+            { id: 109, category: "film", question: "Which film features a love triangle?", options: ["Jab We Met", "Love Aaj Kal", "Aashiqui 2", "Yeh Jawaani Hai Deewani"], correct: 1 },
+            { id: 110, category: "film", question: "In Yeh Jawaani Hai Deewani, what was the destination?", options: ["Paris", "Spain", "Switzerland", "Iceland"], correct: 2 },
+            { id: 111, category: "film", question: "Who played Aditi in Yeh Jawaani Hai Deewani?", options: ["Deepika Padukone", "Katrina Kaif", "Anushka Sharma", "Priyanka Chopra"], correct: 0 },
+            { id: 112, category: "film", question: "In Aashiqui 2, who played the male lead?", options: ["Ranbir Kapoor", "Ranveer Singh", "Aditya Roy Kapur", "Hrithik Roshan"], correct: 2 },
+            { id: 113, category: "film", question: "Who played the female lead in Aashiqui 2?", options: ["Shraddha Kapoor", "Deepika Padukone", "Katrina Kaif", "Anushka Sharma"], correct: 0 },
+            { id: 114, category: "film", question: "In Rockstar, what was the protagonist's journey?", options: ["Love", "Music", "Fame", "All of the above"], correct: 3 },
+            { id: 115, category: "film", question: "Who directed Rockstar?", options: ["Imtiaz Ali", "Vishal Bhardwaj", "Sanjay Leela Bhansali", "Aditya Chopra"], correct: 0 },
+            { id: 116, category: "film", question: "In Love Aaj Kal, which actors played the lead?", options: ["Saif Ali Khan and Deepika Padukone", "Ranbir Kapoor and Deepika Padukone", "Kartik Aaryan and Sara Ali Khan", "Varun Dhawan and Alia Bhatt"], correct: 2 },
+            { id: 117, category: "film", question: "Who directed the original Love Aaj Kal?", options: ["Imtiaz Ali", "Karan Johar", "Aditya Chopra", "Rajkumar Hirani"], correct: 0 },
+            { id: 118, category: "film", question: "In Kabali, which language was the film originally made?", options: ["Tamil", "Telugu", "Kannada", "Malayalam"], correct: 0 },
+            { id: 119, category: "film", question: "Which film won the Palme d'Or at Cannes?", options: ["Lagaan", "Mother India", "Pather Panchali", "Salaam Bombay"], correct: 2 },
+            { id: 120, category: "film", question: "In Pushpa, which actor played the lead?", options: ["Allu Arjun", "Prabhas", "Ram Charan", "NTR"], correct: 0 },
+            { id: 121, category: "film", question: "In KGF, which actor played the lead?", options: ["Yash", "Prabhas", "Allu Arjun", "Ram Charan"], correct: 0 },
+            { id: 122, category: "film", question: "In RRR, which actors played the lead roles?", options: ["Ram Charan and NTR", "Allu Arjun and Prabhas", "Prabhas and Rana Daggubati", "Vishal and Arya"], correct: 0 },
+            { id: 123, category: "film", question: "Who directed RRR?", options: ["SS Rajamouli", "Vishal Bhardwaj", "Anurag Basu", "Dibakar Banerjee"], correct: 0 },
+            { id: 124, category: "film", question: "In Kesari, which historical event was portrayed?", options: ["Battle of Saragarhi", "Battle of Jallianwala Bagh", "Battle of Plassey", "Battle of Panipat"], correct: 0 },
+            { id: 125, category: "film", question: "Which film is a direct sequel to War?", options: ["War 2", "Bade Miyan Chote Miyan", "Pathaan", "Jawan"], correct: 0 },
+
+            // SONG LYRICS - 125 Questions
+            { id: 126, category: "lyrics", question: "Complete: 'Tum ho toh sab hai mere liye...'", options: ["Duniya bhi nahi", "Khud bhi nahi", "Sapna bhi nahi", "Pyaar bhi nahi"], correct: 0 },
+            { id: 127, category: "lyrics", question: "Complete: 'Kabhi kabhi mere dil mein...'", options: ["Khyaal aata hai", "Pyaar aata hai", "Gham aata hai", "Sukh aata hai"], correct: 0 },
+            { id: 128, category: "lyrics", question: "Complete: 'Tere bina zindagi se koi...'", options: ["Shikayat nahi", "Pyaar nahi", "Sukh nahi", "Ummeed nahi"], correct: 0 },
+            { id: 129, category: "lyrics", question: "Complete: 'Yaara silly silly...'", options: ["Dil ka khilona", "Dil ka rona", "Dil ki baatein", "Dil ki raatein"], correct: 0 },
+            { id: 130, category: "lyrics", question: "Complete: 'Chak de India...'", options: ["Bharat mata ki jai", "India zindabad", "Hindustan mera", "Desh ki shaan"], correct: 0 },
+            { id: 131, category: "lyrics", question: "Complete: 'Dandia raas...'", options: ["Tali bajao", "Ghar aa gaye ho", "Ghar se niklo", "Raas raas main"], correct: 0 },
+            { id: 132, category: "lyrics", question: "Complete: 'I see a red door...'", options: ["Painted black", "Painted red", "Painted gold", "Painted blue"], correct: 0 },
+            { id: 133, category: "lyrics", question: "Complete: 'Kal ho naa ho...'", options: ["Aaj ki raat", "Kal ki baat", "Aaj raat bhi", "Kal raat bhi"], correct: 0 },
+            { id: 134, category: "lyrics", question: "Complete: 'Tum itna jo muskurate ho...'", options: ["Kya gham hai", "Kya khushi hai", "Kya baat hai", "Kya naam hai"], correct: 2 },
+            { id: 135, category: "lyrics", question: "Complete: 'Aaj hume tumse pyaar...'", options: ["Ho gaya", "Aa gaya", "Na ho sakha", "Nahi ho sakha"], correct: 0 },
+            { id: 136, category: "lyrics", question: "Complete: 'Jaane bhi do yaaron...'", options: ["Kabhi kabhi", "Ek baar", "Ek din", "Ek raat"], correct: 0 },
+            { id: 137, category: "lyrics", question: "Complete: 'Kar chale hum fida...'", options: ["Jaan-o-tan saath", "Khud ke liye", "Desh ke liye", "Apne liye"], correct: 2 },
+            { id: 138, category: "lyrics", question: "Complete: 'Rang de basanti...'", options: ["Chhadke", "Udde", "Jaale", "Bhaare"], correct: 0 },
+            { id: 139, category: "lyrics", question: "Complete: 'Baarish ban jaao...'", options: ["Dheeme dheeme", "Aaram se", "Dil ke paas", "Man ke paas"], correct: 2 },
+            { id: 140, category: "lyrics", question: "Complete: 'Suhaag raat...'", options: ["Dil ke liye", "Jaan ke liye", "Saadon ke liye", "Raaton ke liye"], correct: 3 },
+            { id: 141, category: "lyrics", question: "Complete: 'Ik junoon...'", options: ["Hai mujhe", "Tha mujhe", "Tha use", "Hai use"], correct: 0 },
+            { id: 142, category: "lyrics", question: "Complete: 'Rishte teri...'", options: ["Duniya se", "Qismat se", "Manzil se", "Sukh se"], correct: 1 },
+            { id: 143, category: "lyrics", question: "Complete: 'Main tumhara raha...'", options: ["Saath har pal", "Dil mein bas", "Sukh mein sang", "Raahon mein"], correct: 0 },
+            { id: 144, category: "lyrics", question: "Complete: 'Mere se bhi...'", options: ["Zyada gehra", "Zyada pyara", "Zyada khara", "Zyada sara"], correct: 1 },
+            { id: 145, category: "lyrics", question: "Complete: 'Radhika riya...'", options: ["Jayenge", "Aayenge", "Chalenge", "Bhagenge"], correct: 2 },
+            { id: 146, category: "lyrics", question: "Complete: 'Pehli baar...'", options: ["Pyaar karungi", "Karunga pyaar", "Mila pyaar", "Mila tu"], correct: 0 },
+            { id: 147, category: "lyrics", question: "Complete: 'Dhadak...'", options: ["Dil ki", "Jaan ki", "Rooh ki", "Man ki"], correct: 0 },
+            { id: 148, category: "lyrics", question: "Complete: 'Tera Husn...'", options: ["Lajawab hai", "Khauf se", "Khauf pe", "Kamaal hai"], correct: 0 },
+            { id: 149, category: "lyrics", question: "Complete: 'Darling aaj...'", options: ["Mood mein ho tum", "Mood mein hoon", "Mood mein hai", "Mood mein the"], correct: 0 },
+            { id: 150, category: "lyrics", question: "Complete: 'Bekarar karke...'", options: ["Hume yunhi", "Hume yahin", "Tumhe yunhi", "Tumhe yahin"], correct: 0 },
+            { id: 151, category: "lyrics", question: "Complete: 'Aaj ki raat...'", options: ["Kaas na jaao", "Kahin na jaao", "Kabhi na jaao", "Kabhi nahi jaao"], correct: 1 },
+            { id: 152, category: "lyrics", question: "Complete: 'Abhi mujh mein...'", options: ["Kaun si aag hai", "Kaun si jaan hai", "Kaun si baatein", "Kaun se raaz"], correct: 0 },
+            { id: 153, category: "lyrics", question: "Complete: 'Tera mera rishta...'", options: ["Atoot hai", "Anmol hai", "Anokha hai", "Ajab hai"], correct: 0 },
+            { id: 154, category: "lyrics", question: "Complete: 'Raat akeli...'", options: ["Hai bekarar", "Sone de", "Jage hai", "Sonee de"], correct: 0 },
+            { id: 155, category: "lyrics", question: "Complete: 'Mere dost bulao...'", options: ["Ke mujhe", "Jo mere ho", "Jinhe maine", "Ke meri"], correct: 2 },
+            { id: 156, category: "lyrics", question: "Complete: 'Ek ladki ko...'", options: ["Dekha to", "Pehchaana to", "Dekha hai", "Pehchana hai"], correct: 0 },
+            { id: 157, category: "lyrics", question: "Complete: 'Tere liye...'", options: ["Mera sukh chor", "Mera ghar chor", "Mera sant chor", "Mera samay chor"], correct: 0 },
+            { id: 158, category: "lyrics", question: "Complete: 'Kuch kuch hota hai...'", options: ["Jab tum paas", "Jab tum mere paas", "Jab mere paas", "Jab tum hote"], correct: 1 },
+            { id: 159, category: "lyrics", question: "Complete: 'Aaja nachle...'", options: ["Saath mere", "Mere sang", "Mere paas", "Meri jaan"], correct: 0 },
+            { id: 160, category: "lyrics", question: "Complete: 'Chand sifarish...'", options: ["Karo na", "Kijiye na", "Karo hai", "Kijiye hai"], correct: 1 },
+            { id: 161, category: "lyrics", question: "Complete: 'Tere naam...'", options: ["Se raat bhar", "Se din bhar", "Se kal bhar", "Se samay bhar"], correct: 0 },
+            { id: 162, category: "lyrics", question: "Complete: 'Mere bhaiya...'", options: ["Dhilli mein", "Ghar mein", "Desh mein", "Duniya mein"], correct: 0 },
+            { id: 163, category: "lyrics", question: "Complete: 'Senorita...'", options: ["Tera sath", "Mere sath", "Teri jaan", "Meri jaan"], correct: 0 },
+            { id: 164, category: "lyrics", question: "Complete: 'Tum se jo...'", options: ["Milne ka", "Milna tha", "Milne ke", "Milon ke"], correct: 2 },
+            { id: 165, category: "lyrics", question: "Complete: 'Mere hote...'", options: ["Hue hain farishtey", "Ho gaye farishtey", "the farishtey", "the hain"], correct: 0 },
+            { id: 166, category: "lyrics", question: "Complete: 'Badli tu badl...'", options: ["Gaya mere", "Gaye mere", "Gaya apna", "Gaye apne"], correct: 0 },
+            { id: 167, category: "lyrics", question: "Complete: 'O sanam...'", options: ["Mere DIL KO", "Mere jaan ko", "Mere roop ko", "Mere tan ko"], correct: 0 },
+            { id: 168, category: "lyrics", question: "Complete: 'Dil deewana...'", options: ["Ho gaya", "Hota hai", "Tha hai", "Tha gaya"], correct: 0 },
+            { id: 169, category: "lyrics", question: "Complete: 'Main hoon saath...'", options: ["Tere har pal", "Tere sada", "Tere din raat", "Tere saath sada"], correct: 0 },
+            { id: 170, category: "lyrics", question: "Complete: 'Dekho aaj...'", options: ["Phir raat hai", "Phir din hai", "Phir kal hai", "Phir naya din"], correct: 0 },
+            { id: 171, category: "lyrics", question: "Complete: 'Aasmaan ke...'", options: ["Taaron se", "Baadlon se", "Sapnon se", "Roshan se"], correct: 0 },
+            { id: 172, category: "lyrics", question: "Complete: 'Teri sari...'", options: ["Khushboo se", "Baaton se", "Hassi se", "Baatein"], correct: 2 },
+            { id: 173, category: "lyrics", question: "Complete: 'Na jaane kyun...'", options: ["Hota hai", "Milta hai", "Rehta hai", "Kehta hai"], correct: 0 },
+            { id: 174, category: "lyrics", question: "Complete: 'Loverboy...'", options: ["Ban gaya", "Hoon main", "Ho gaya", "Ban gayi"], correct: 0 },
+            { id: 175, category: "lyrics", question: "Complete: 'Tere bina main...'", options: ["Adhura hoon", "Adhoor hoon", "Adhoora hoon", "Aadhoora hoon"], correct: 0 },
+            { id: 176, category: "lyrics", question: "Complete: 'Humko deewana...'", options: ["Kar gaya", "Kar di", "Kar diya", "Kar diye"], correct: 2 },
+            { id: 177, category: "lyrics", question: "Complete: 'Aaj phir jeene...'", options: ["Ki tamanna hai", "Ka arzoo hai", "Ki ichchha hai", "Ka shukhun hai"], correct: 0 },
+            { id: 178, category: "lyrics", question: "Complete: 'Tere saath hoon...'", options: ["Main har pal", "Main saada", "Main sada", "Main din raat"], correct: 0 },
+            { id: 179, category: "lyrics", question: "Complete: 'Yaad aa raha...'", options: ["Tum bar bar", "Tum raat din", "Tum har raat", "Tum saada"], correct: 0 },
+            { id: 180, category: "lyrics", question: "Complete: 'Main to bas...'", options: ["Tumhara hoon", "Tumhari hoon", "Tumhare hain", "Tumhare ho"], correct: 0 },
+            { id: 181, category: "lyrics", question: "Complete: 'Dosti ke din...'", options: ["Yaad aate hain", "Yaad aaya hai", "Yaad aate ho", "Yaad aaye hain"], correct: 0 },
+            { id: 182, category: "lyrics", question: "Complete: 'Shukriya mere...'", options: ["Dil ka khuda", "Dil ke liye", "Dil se dekhe", "Dil ke bhagwan"], correct: 3 },
+            { id: 183, category: "lyrics", question: "Complete: 'Tujhe suhai...'", options: ["Din din", "Raat raat", "Din raat", "Din ko din"], correct: 0 },
+            { id: 184, category: "lyrics", question: "Complete: 'Pehli baar...'", options: ["Kisine dekha hai", "Koi dekhe", "Maine dekha", "Kisi ne"], correct: 2 },
+            { id: 185, category: "lyrics", question: "Complete: 'Tere dil se...'", options: ["Mera dil", "Mera jaan", "Meri jaan", "Mere dil"], correct: 0 },
+            { id: 186, category: "lyrics", question: "Complete: 'Teri parwaah mein...'", options: ["Main jalaon", "Main jalun", "Main jale", "Main jalti"], correct: 1 },
+            { id: 187, category: "lyrics", question: "Complete: 'Khone wali...'", options: ["Baat ho gaya", "Baat hai", "Baat thee", "Baat the"], correct: 0 },
+            { id: 188, category: "lyrics", question: "Complete: 'Mili nahi abhi...'", options: ["Toh milunga", "Toh milun", "Toh mila", "Toh mile"], correct: 0 },
+            { id: 189, category: "lyrics", question: "Complete: 'Chod saath...'", options: ["Nahi hoga", "Nahi hona", "Nahi hun", "Nahi hoon"], correct: 0 },
+            { id: 190, category: "lyrics", question: "Complete: 'Chaleya jaaye...'", options: ["Bin tere", "Bin tuma", "Bin tuma", "Bin sath"], correct: 0 },
+            { id: 191, category: "lyrics", question: "Complete: 'Tum saath...'", options: ["Ho mere", "Ho mere", "Raho mere", "Sath raho"], correct: 0 },
+            { id: 192, category: "lyrics", question: "Complete: 'Kiska hai ye...'", options: ["Asmaan hai", "Zameen hai", "Ghazal hai", "Tamanna hai"], correct: 2 },
+            { id: 193, category: "lyrics", question: "Complete: 'Lekar aaye...'", options: ["Ravi roshan", "Ravi ke rang", "Ravi ki baatein", "Ravi ke geet"], correct: 1 },
+            { id: 194, category: "lyrics", question: "Complete: 'Jee le apni...'", options: ["Zindagi", "Raatein", "Baatein", "Saatein"], correct: 0 },
+            { id: 195, category: "lyrics", question: "Complete: 'Tere liye...'", options: ["Duniya chor", "Sab chor", "Sabkuch chor", "Sabh kuch chor"], correct: 2 },
+            { id: 196, category: "lyrics", question: "Complete: 'Diye jalao...'", options: ["Jagmag kare", "Jag jagmag", "Jagmag ho", "Jagmag karo"], correct: 0 },
+            { id: 197, category: "lyrics", question: "Complete: 'Zindagi mere...'", options: ["Sang hai", "Sath hai", "Sath raha", "Sang raha"], correct: 0 },
+            { id: 198, category: "lyrics", question: "Complete: 'Bande mein...'", options: ["Teri chaap", "Teri ooshan", "Teri chap", "Teri hasti"], correct: 0 },
+            { id: 199, category: "lyrics", question: "Complete: 'Main jeeta hun...'", options: ["Tere liye", "Tere khun", "Tere liye", "Tere dhun"], correct: 0 },
+            { id: 200, category: "lyrics", question: "Complete: 'Saath hote...'", options: ["Jo pal", "Jo din", "Jo raat", "Jo samay"], correct: 0 },
+            { id: 201, category: "lyrics", question: "Complete: 'Na kabhi kabhi...'", options: ["Yaad aata hai", "Aata hai", "Aate hain", "Aati hai"], correct: 0 },
+            { id: 202, category: "lyrics", question: "Complete: 'Jaane kya...'", options: ["Baat hai", "Baatein hain", "Baat the", "Baatein the"], correct: 0 },
+            { id: 203, category: "lyrics", question: "Complete: 'Teri kami...'", options: ["Saale-o-saath", "Roz saath", "Din din", "Sada saath"], correct: 0 },
+            { id: 204, category: "lyrics", question: "Complete: 'Main toh bas...'", options: ["Teri hoon", "Tumhari hoon", "Tumhare hain", "Tere hain"], correct: 0 },
+            { id: 205, category: "lyrics", question: "Complete: 'Bechain hoon...'", options: ["Tere bina", "Tere liye", "Tere sath", "Tere khun"], correct: 0 },
+            { id: 206, category: "lyrics", question: "Complete: 'Teri bewafa...'", options: ["Baatein suni", "Baatein sunn", "Baatein sune", "Baatein suno"], correct: 0 },
+            { id: 207, category: "lyrics", question: "Complete: 'Apne sath...'", options: ["Le gaya", "Le li", "Le liya", "Le liye"], correct: 2 },
+            { id: 208, category: "lyrics", question: "Complete: 'Mere khwaabon...'", options: ["Mein tu", "Mein tum", "Mein aap", "Mein wo"], correct: 0 },
+            { id: 209, category: "lyrics", question: "Complete: 'Tum mile...'", options: ["Toh samajh", "To samjha", "Tho samjho", "Toh samja"], correct: 0 },
+            { id: 210, category: "lyrics", question: "Complete: 'Teri parwaah mein...'", options: ["Barbaad hoon", "Barbad hua", "Barbadi hai", "Barbadi ho"], correct: 0 },
+            { id: 211, category: "lyrics", question: "Complete: 'Mujhe neend...'", options: ["Nahi aati", "Nahi aaye", "Nahi aate", "Nahi aya"], correct: 0 },
+            { id: 212, category: "lyrics", question: "Complete: 'Dil diye...'", options: ["Tujhe diye", "Samjh aaye", "Samjha yeh", "Samjha maine"], correct: 3 },
+            { id: 213, category: "lyrics", question: "Complete: 'Saath tere...'", options: ["Har pal", "Raat din", "Din raat", "Pal pal"], correct: 0 },
+            { id: 214, category: "lyrics", question: "Complete: 'Jaan-o-tan...'", options: ["Saath hai", "Saath liye", "Saath raha", "Saath sang"], correct: 1 },
+            { id: 215, category: "lyrics", question: "Complete: 'Tere bina...'", options: ["Main nahi", "Main aadha", "Main adhura", "Main adhoor"], correct: 2 },
+            { id: 216, category: "lyrics", question: "Complete: 'Tum se bhi...'", options: ["Zyada pyara", "Zyada gehara", "Zyada khara", "Zyada sara"], correct: 0 },
+            { id: 217, category: "lyrics", question: "Complete: 'Pyaar mein...'", options: ["Tum hi meri", "Tum hi mere", "Tum hi mera", "Tum hi meri"], correct: 0 },
+            { id: 218, category: "lyrics", question: "Complete: 'Saadgi mein...'", options: ["Baatein hain", "Baatein ayi", "Baatein the", "Baatein ay"], correct: 0 },
+            { id: 219, category: "lyrics", question: "Complete: 'Tere bagair...'", options: ["Adhoora", "Adhura", "Adhoor", "Aadhoora"], correct: 0 },
+            { id: 220, category: "lyrics", question: "Complete: 'Main janaab...'", options: ["Se bekhudi", "Se bewafa", "Se beghair", "Se bezaar"], correct: 0 },
+            { id: 221, category: "lyrics", question: "Complete: 'Tujhe kabhie...'", options: ["Na bhula paun", "Na bhula paunga", "Na bhula pavum", "Na bhula paon"], correct: 1 },
+            { id: 222, category: "lyrics", question: "Complete: 'Teri yaad mein...'", options: ["Raat bhar", "Din bhar", "Hamesha", "Roz raat"], correct: 0 },
+            { id: 223, category: "lyrics", question: "Complete: 'Mere dil ke...'", options: ["Paas aao", "Pass aao", "Passe aao", "Pass ho"], correct: 0 },
+            { id: 224, category: "lyrics", question: "Complete: 'Khwaahoon mein...'", options: ["Tere hai", "Tere hoon", "Tere ho", "Tere hain"], correct: 1 },
+            { id: 225, category: "lyrics", question: "Complete: 'Kaise miloge...'", options: ["Tum mere", "Tum mujhe", "Tum aur", "Tum mere"], correct: 0 },
+            { id: 226, category: "lyrics", question: "Complete: 'Yaadon mein...'", options: ["Basa ho", "Basaa tha", "Basaa hai", "Basaa hoon"], correct: 2 },
+            { id: 227, category: "lyrics", question: "Complete: 'Tere sang...'", options: ["Jeevan bhar", "Jeevan din", "Jeevan raat", "Jeevan pal"], correct: 0 },
+            { id: 228, category: "lyrics", question: "Complete: 'Mohabbat kar...'", options: ["Lo tumhe", "Lo tume", "Lo tumse", "Lo tumko"], correct: 3 },
+            { id: 229, category: "lyrics", question: "Complete: 'Tujhse pyaar...'", options: ["Kar baithe hain", "Kar diye hain", "Kar liye hain", "Kar rahe hain"], correct: 0 },
+            { id: 230, category: "lyrics", question: "Complete: 'Mere aankhon...'", options: ["Mein basaa hai", "Mein basaa ho", "Mein basaa hoon", "Mein basaa the"], correct: 2 },
+            { id: 231, category: "lyrics", question: "Complete: 'Dil kehta hai...'", options: ["Chal unhe le", "Chal unhein le", "Chal unhe lok", "Chal unhe le"], correct: 0 },
+            { id: 232, category: "lyrics", question: "Complete: 'Raat ke andhere...'", options: ["Mein tere sang", "Mein teri band", "Mein tere hath", "Mein tere pass"], correct: 0 },
+            { id: 233, category: "lyrics", question: "Complete: 'Tere saath mera...'", options: ["Naseeb hai", "Naseeb tha", "Naseeb hai", "Naseeb the"], correct: 0 },
+            { id: 234, category: "lyrics", question: "Complete: 'Khud ko bhula...'", options: ["Dunga tujhe", "Dunga tumhe", "Dunga tume", "Dunga tumko"], correct: 1 },
+            { id: 235, category: "lyrics", question: "Complete: 'Tere pag...'", options: ["Chhune bhar", "Chhune din", "Chhune raat", "Chhune pal"], correct: 0 },
+            { id: 236, category: "lyrics", question: "Complete: 'Dil khta hai...'", options: ["Ruk ja", "Ruko ja", "Ruk jaa", "Rukh ja"], correct: 2 },
+            { id: 237, category: "lyrics", question: "Complete: 'Tujhe dekh...'", options: ["Mera dil", "Mera jaan", "Meri jaan", "Mere dil"], correct: 0 },
+            { id: 238, category: "lyrics", question: "Complete: 'Pyaar se...'", options: ["Jo kaha tha", "Jo kahi tha", "Jo kahenge", "Jo kahe"], correct: 0 },
+            { id: 239, category: "lyrics", question: "Complete: 'Mere gale...'", options: ["Laga lo", "Lagai lo", "Laga le", "Lagai le"], correct: 0 },
+            { id: 240, category: "lyrics", question: "Complete: 'Saath tere...'", options: ["Jeena bhool", "Jeena bhoolu", "Jeena bhulun", "Jeena bhulun"], correct: 3 },
+            { id: 241, category: "lyrics", question: "Complete: 'Tere jaisa...'", options: ["Nahi milega", "Nahi milenga", "Nahi mila", "Nahi mile"], correct: 0 },
+            { id: 242, category: "lyrics", question: "Complete: 'Mohabbat kar...'", options: ["Le prabhu", "Le babua", "Le more", "Le socha"], correct: 2 },
+            { id: 243, category: "lyrics", question: "Complete: 'Tum mere...'", options: ["Dil ho", "Dil ho", "Dil the", "Dil the"], correct: 0 },
+            { id: 244, category: "lyrics", question: "Complete: 'Saath chalne...'", options: ["Ke liye", "Ki sharti", "Ka vaada", "Tha sharti"], correct: 2 },
+            { id: 245, category: "lyrics", question: "Complete: 'Tere bina...'", options: ["Sukh nahi", "Ghar nahi", "Dum nahi", "Har nahi"], correct: 2 },
+            { id: 246, category: "lyrics", question: "Complete: 'Mere phaere...'", options: ["Mein tum", "Mein tumhe", "Mein tumhare", "Mein tumhare"], correct: 1 },
+            { id: 247, category: "lyrics", question: "Complete: 'Dil rote hai...'", options: ["Jab bhumilti", "Jab bitati", "Jab bitaati", "Jab bittati"], correct: 1 },
+            { id: 248, category: "lyrics", question: "Complete: 'Teri rah mein...'", options: ["Bhul jaun", "Bhul jaun", "Bhool jaun", "Bhool jaun"], correct: 2 },
+            { id: 249, category: "lyrics", question: "Complete: 'Mere ghar...'", options: ["Aa jaao", "Aa jao", "Aao", "Aa"], correct: 1 },
+            { id: 250, category: "lyrics", question: "Complete: 'Tum mujhe...'", options: ["Bhula do", "Bhulado", "Bhool do", "Bhule do"], correct: 0 }
+        ];
+
+       const darePool = [
+    "Remove your shirt entirely and don't put it back on for the rest of the game",
+    "Unzip your pants or skirt and let them drop to your ankles while staying on camera",
+    "Show me the tan lines on your hips by pulling your underwear down just an inch",
+    "Take off your underwear without taking off your pants or skirt",
+    "Show me your bare chest or cleavage for exactly 5 seconds, then go dark",
+    "Lift your shirt and show me the skin of your stomach and ribs while breathing heavily",
+    "Turn around and show me the curve of your bare backside",
+    "Slide your hand inside your underwear and show me the movement of your hand",
+    "Take off one item of clothing using only your teeth",
+    "Show me your 'happy trail' or the base of your stomach and v-line",
+    "Stand up and show me your bare thighs from the back",
+    "Unbutton your pants and show me the lace or fabric of your underwear",
+    "Remove your bra or undershirt while keeping your outer shirt on",
+    "Show me the side-profile of your body while completely naked from the waist up",
+    "Pull your underwear to the side to show me a 'peek' of what’s underneath",
+    "Show me your bare hips and the dimples on your lower back",
+    "Slowly slide your pants off while keeping eye contact with the camera",
+    "Show me your bare chest while you trace your nipples with your fingers",
+    "Take off everything except your underwear and do a slow 360-degree turn",
+    "Show me where you are 'ready' by pressing the fabric of your underwear against yourself",
+    "Remove your shirt and use it to blindfold yourself for the next three dares",
+    "Show me the skin of your inner thigh, as high up as you can go",
+    "Undo every button on your shirt but don't take it off; let it hang open",
+    "Show me your bare chest or breasts reflected in a mirror",
+    "Put on your tightest piece of clothing and then take it off as slowly as possible",
+    "Trace your own body from your neck down to your genitals over your clothes",
+    "Pinch your nipples until they are hard and show them to me",
+    "Spank yourself hard enough to leave a red mark and show me the mark",
+    "Lick your own finger and trace it around your nipple or sensitive area",
+    "Show me how you look when you’re 'pleasuring' yourself without showing the act",
+    "Put a piece of ice down your shirt and show me your reaction",
+    "Bite your inner thigh and show me the tooth marks",
+    "Show me your 'O-face' while you touch yourself through your clothes",
+    "Pour a small amount of water on your chest and show me how it drips down",
+    "Grab yourself firmly and groan into the microphone",
+    "Describe the last time you were completely naked in front of someone",
+    "What is the most extreme sexual thing you’ve ever let someone do to you?",
+    "Tell me about a time you had sex in a place where you could have been caught",
+    "What is the biggest toy you’ve ever used on yourself?",
+    "Have you ever had a threesome? Describe the best part",
+    "What is the dirtiest thing a partner has ever said to you in bed?",
+    "Describe your favorite one-night stand experience",
+    "Have you ever watched yourself having sex in a mirror? Describe it",
+    "Tell me about the time you were the most turned on you’ve ever been",
+    "What is a fetish you’ve acted on in the past?",
+    "Have you ever been tied up or restrained? Tell me everything",
+    "What is the most scandalous photo you’ve ever sent someone?",
+    "Tell me about a time you performed for someone else",
+    "What is the longest you’ve ever spent on foreplay alone?",
+    "Describe the most primal or animalistic sex you’ve ever had",
+    "Tell me exactly where you want me to bite you until you bruise",
+    "If I were there, which item of clothing would you want me to rip off first?",
+    "Describe exactly how you want me to taste you for the first time",
+    "What is the most dominant thing you want to do to me?",
+    "Describe a fantasy involving you, me, and a public bathroom",
+    "Tell me what you want to feel dripping down your legs",
+    "If we were in a movie, describe our 'uncut' sex scene",
+    "What is the first thing you want to feel inside of you when we meet?",
+    "Tell me how you want me to 'punish' you for being a tease tonight",
+    "Describe the mess we would make in a hotel room",
+    "Send a photo of your bare chest with my name written on your skin",
+    "Show me the view of your body from between your legs",
+    "Take a video of you unzipping your pants and dropping them",
+    "Show me your bare skin while you are in the shower or bath",
+    "Put your hand down your pants and tell me exactly how it feels in there",
+    "Show me your naughtiest piece of clothing on your bare body",
+    "Describe the scent of your arousal right now",
+    "Show me your bare stomach while you contract your muscles",
+    "Take off your shirt and show me your back and spine",
+    "Show me your wet underwear",
+    "Describe the exact way you’re going to finish yourself off later",
+    "Show me the underside of your breasts or pecs",
+    "Pull your pants down just enough to show me your pubic hair or shaven area",
+    "Show me your reaction when I say something filthy",
+    "Hold the camera close to your mouth and describe an oral fantasy",
+    "Show me your bare neck while you pretend I’m holding you",
+    "Tell me about a time you had sex while someone else was in the house",
+    "What is the most taboo thing you think about when you're alone?",
+    "Describe the feeling of being stretched or filled",
+    "Show me your bare waist and hips from the back",
+    "Tell me about a time you were edged for a long time",
+    "Show me your bare feet while you curl your toes",
+    "Describe your favorite kink that most people think is weird",
+    "Show me your 'morning' body as if we just woke up",
+    "Tell me about a time you had sex in a risky outdoor location",
+    "Show me the gap between your thighs",
+    "Describe the tastiest thing you’ve ever done sexually",
+    "Show me your 'O-face' and hold it for 10 seconds",
+    "Tell me how you want to be used by me",
+    "Show me your bare collarbone while you bite your lip",
+    "Describe the most intense orgasm you’ve ever had in your life",
+    "Show me your body in the 'doggy' position",
+    "Tell me what you want to do to me in a crowded theater",
+    "Show me your 'spreading' of your legs or chest",
+    "Describe the weight of me on top of you",
+    "Show me your sweaty skin after 'exercise'",
+    "Tell me about a time you were watched without your knowledge",
+    "Show me your bare hips while you thrust at the camera",
+    "Describe the sound of your name being moaned",
+    "Take off everything, turn the camera off, and tell me what you’re doing to yourself"
+];
+
+        // ==================== SESSION STORAGE ====================
+        function saveGameState() {
+            const state = {
+                screen: gameState.screen,
+                isHost: gameState.isHost,
+                roomCode: gameState.roomCode,
+                p1Name: gameState.p1Name,
+                p2Name: gameState.p2Name,
+                p1Score: gameState.p1Score,
+                p2Score: gameState.p2Score,
+                p1Rounds: gameState.p1Rounds,
+                p2Rounds: gameState.p2Rounds,
+                currentRound: gameState.currentRound,
+                usedQuestionIds: Array.from(gameState.usedQuestionIds),
+                playerNumber: gameState.playerNumber
+            };
+            sessionStorage.setItem(gameState.sessionStorageKey, JSON.stringify(state));
+        }
+
+        function loadGameState() {
+            const saved = sessionStorage.getItem(gameState.sessionStorageKey);
+            if (saved) {
+                const state = JSON.parse(saved);
+                Object.assign(gameState, state);
+                gameState.usedQuestionIds = new Set(state.usedQuestionIds);
+                return true;
+            }
+            return false;
+        }
+
+        function clearGameState() {
+            sessionStorage.removeItem(gameState.sessionStorageKey);
+        }
+
+        // ==================== SCREEN MANAGEMENT ====================
+        function showScreen(screenName) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+            switch(screenName) {
+                case 'landing':
+                    document.querySelector('.landing-screen').classList.add('active');
+                    gameState.screen = 'landing';
+                    break;
+                case 'reconnecting':
+                    document.querySelector('.reconnecting-screen').classList.add('active');
+                    gameState.screen = 'reconnecting';
+                    break;
+                case 'waiting':
+                    document.querySelector('.waiting-screen').classList.add('active');
+                    gameState.screen = 'waiting';
+                    break;
+                case 'join':
+                    document.getElementById('joinScreen').classList.add('active');
+                    gameState.screen = 'join';
+                    break;
+                case 'names':
+                    document.getElementById('namesScreen').classList.add('active');
+                    gameState.screen = 'names';
+                    document.getElementById('playerName').value = '';
+                    document.getElementById('playerName').focus();
+                    break;
+                case 'game':
+                    document.getElementById('gameScreen').classList.add('active');
+                    gameState.screen = 'game';
+                    break;
+                case 'roundWinner':
+                    document.getElementById('roundWinnerScreen').classList.add('active');
+                    gameState.screen = 'roundWinner';
+                    break;
+                case 'gameOver':
+                    document.getElementById('gameOverScreen').classList.add('active');
+                    gameState.screen = 'gameOver';
+                    break;
+                case 'howToPlay':
+                    document.getElementById('howToPlayScreen').classList.add('active');
+                    gameState.screen = 'howToPlay';
+                    break;
+            }
+            saveGameState();
+        }
+
+        // ==================== GAME CREATION ====================
+        function createGame() {
+            gameState.isHost = true;
+            gameState.playerNumber = 1;
+
+            // Generate 4-digit room code
+            gameState.roomCode = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+
+            // Create peer with room code as ID
+            const peerId = 'bbuzz-' + gameState.roomCode;
+            gameState.peer = new Peer(peerId, {
+                host: 'peerjs-server.herokuapp.com',
+                secure: true,
+                port: 443
+            });
+
+            gameState.peer.on('open', function(id) {
+                document.getElementById('roomCodeDisplay').textContent = gameState.roomCode;
+                showScreen('waiting');
+            });
+
+            gameState.peer.on('connection', function(conn) {
+                gameState.conn = conn;
+                setupConnection();
+                showScreen('names');
+            });
+
+            gameState.peer.on('error', function(err) {
+                console.error('Peer error:', err);
+            });
+
+            saveGameState();
+        }
+
+        function showJoinScreen() {
+            document.getElementById('joinCode').value = '';
+            showScreen('join');
+        }
+
+        function joinGame() {
+            const code = document.getElementById('joinCode').value.trim();
+            if (code.length !== 4) {
+                alert('Please enter a valid 4-digit code');
+                return;
+            }
+
+            gameState.isHost = false;
+            gameState.playerNumber = 2;
+            gameState.roomCode = code;
+
+            gameState.peer = new Peer({
+                host: 'peerjs-server.herokuapp.com',
+                secure: true,
+                port: 443
+            });
+
+            gameState.peer.on('open', function(id) {
+                const peerId = 'bbuzz-' + code;
+                gameState.conn = gameState.peer.connect(peerId, { reliable: true });
+                setupConnection();
+                showScreen('reconnecting');
+            });
+
+            gameState.peer.on('error', function(err) {
+                console.error('Peer error:', err);
+                alert('Connection error. Please try again.');
+                showScreen('landing');
+            });
+
+            saveGameState();
+        }
+
+        function setupConnection() {
+            gameState.conn.on('open', function() {
+                if (!gameState.isHost) {
+                    showScreen('names');
+                }
+            });
+
+            gameState.conn.on('data', function(data) {
+                handleNetworkMessage(data);
+            });
+
+            gameState.conn.on('error', function(err) {
+                console.error('Connection error:', err);
+            });
+
+            gameState.conn.on('close', function() {
+                console.log('Connection closed');
+            });
+        }
+
+        // ==================== NETWORK MESSAGING ====================
+        function sendMessage(message) {
+            if (gameState.conn && gameState.conn.open) {
+                gameState.conn.send(message);
+            }
+        }
+
+        function handleNetworkMessage(data) {
+            switch(data.action) {
+                case 'names':
+                    if (data.playerNumber === 1) {
+                        gameState.p1Name = data.name;
+                    } else {
+                        gameState.p2Name = data.name;
+                    }
+                    updateNamesDisplay();
+                    break;
+                case 'startGame':
+                    startGameFromNetwork();
+                    break;
+                case 'question':
+                    gameState.currentQuestion = data.questionData;
+                    gameState.p1Score = data.p1Score;
+                    gameState.p2Score = data.p2Score;
+                    displayQuestion();
+                    break;
+                case 'answer':
+                    handleRemoteAnswer(data);
+                    break;
+                case 'answerResult':
+                    showResult(data);
+                    break;
+                case 'ready':
+                    if (data.playerNumber === 1) {
+                        gameState.p1Ready = true;
+                    } else {
+                        gameState.p2Ready = true;
+                    }
+                    updateReadinessDisplay();
+                    break;
+                case 'bothReady':
+                    resetForNextQuestion();
+                    break;
+                case 'roundWin':
+                    displayRoundWinner(data);
+                    break;
+                case 'gameOver':
+                    displayGameOver(data);
+                    break;
+            }
+            saveGameState();
+        }
+
+        // ==================== NAMES SCREEN ====================
+        function updateNamesDisplay() {
+            const opponentName = gameState.playerNumber === 1 ? gameState.p2Name : gameState.p1Name;
+            if (opponentName) {
+                document.getElementById('opponentNameDisplay').innerHTML =
+                    `<strong>${opponentName}</strong> has joined! Ready to start?`;
+                document.getElementById('startGameButton').disabled = false;
+            } else {
+                document.getElementById('opponentNameDisplay').innerHTML = 'Waiting for opponent...';
+                document.getElementById('startGameButton').disabled = true;
+            }
+        }
+
+        function startGame() {
+            const name = document.getElementById('playerName').value.trim();
+            if (!name) {
+                alert('Please enter your name');
+                return;
+            }
+
+            if (gameState.playerNumber === 1) {
+                gameState.p1Name = name;
+            } else {
+                gameState.p2Name = name;
+            }
+
+            sendMessage({
+                action: 'names',
+                name: name,
+                playerNumber: gameState.playerNumber
+            });
+
+            if (gameState.isHost) {
+                setTimeout(() => {
+                    if (gameState.p2Name) {
+                        sendMessage({ action: 'startGame' });
+                        startGameFromNetwork();
+                    }
+                }, 500);
+            }
+
+            saveGameState();
+        }
+
+        function startGameFromNetwork() {
+            gameState.p1Score = 0;
+            gameState.p2Score = 0;
+            gameState.p1Rounds = 0;
+            gameState.p2Rounds = 0;
+            gameState.currentRound = 1;
+            gameState.usedQuestionIds.clear();
+            gameState.gameActive = true;
+
+            updateGameHeader();
+
+            if (gameState.isHost) {
+                loadNextQuestion();
+            }
+
+            showScreen('game');
+            saveGameState();
+        }
+
+        // ==================== GAME HEADER ====================
+        function updateGameHeader() {
+            document.getElementById('p1NameHeader').textContent = gameState.p1Name;
+            document.getElementById('p2NameHeader').textContent = gameState.p2Name;
+            document.getElementById('p1ScoreDisplay').textContent = gameState.p1Score;
+            document.getElementById('p2ScoreDisplay').textContent = gameState.p2Score;
+            document.getElementById('roundDisplay').textContent = `Round ${gameState.currentRound}`;
+            document.getElementById('firstToDisplay').textContent = 'First to 7';
+        }
+
+        // ==================== QUESTION MANAGEMENT ====================
+        function getRandomQuestion() {
+            let available = questionPool.filter(q => !gameState.usedQuestionIds.has(q.id));
+            if (available.length === 0) {
+                gameState.usedQuestionIds.clear();
+                available = questionPool;
+            }
+            const question = available[Math.floor(Math.random() * available.length)];
+            gameState.usedQuestionIds.add(question.id);
+            return question;
+        }
+
+        function loadNextQuestion() {
+            gameState.currentQuestion = getRandomQuestion();
+            gameState.p1Answer = null;
+            gameState.p2Answer = null;
+            gameState.p1AnswerTime = null;
+            gameState.p2AnswerTime = null;
+            gameState.p1Ready = false;
+            gameState.p2Ready = false;
+            gameState.questionAnswered = false;
+
+            if (gameState.isHost) {
+                sendMessage({
+                    action: 'question',
+                    questionData: gameState.currentQuestion,
+                    p1Score: gameState.p1Score,
+                    p2Score: gameState.p2Score
+                });
+            }
+
+            displayQuestion();
+            startTimer();
+            saveGameState();
+        }
+
+        function displayQuestion() {
+            const q = gameState.currentQuestion;
+            document.getElementById('categoryBadge').textContent =
+                q.category === 'film' ? 'Film Trivia' : 'Song Lyrics';
+            document.getElementById('questionText').textContent = q.question;
+
+            const optionsGrid = document.getElementById('optionsGrid');
+            optionsGrid.innerHTML = '';
+            q.options.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option';
+                btn.textContent = option;
+                btn.onclick = () => submitAnswer(index);
+                optionsGrid.appendChild(btn);
+            });
+
+            document.getElementById('resultOverlay').classList.remove('active');
+            gameState.timeLeft = 15;
+            document.getElementById('timerDisplay').textContent = gameState.timeLeft;
+            document.getElementById('timerDisplay').classList.remove('warning');
+        }
+
+        function startTimer() {
+            if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                const timerDisplay = document.getElementById('timerDisplay');
+                timerDisplay.textContent = gameState.timeLeft;
+
+                if (gameState.timeLeft <= 5) {
+                    timerDisplay.classList.add('warning');
+                } else {
+                    timerDisplay.classList.remove('warning');
+                }
+
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    resolveQuestion();
+                }
+            }, 1000);
+        }
+
+        function submitAnswer(optionIndex) {
+            if (gameState.questionAnswered) return;
+
+            const now = Date.now();
+            if (gameState.playerNumber === 1) {
+                gameState.p1Answer = optionIndex;
+                gameState.p1AnswerTime = now;
+            } else {
+                gameState.p2Answer = optionIndex;
+                gameState.p2AnswerTime = now;
+            }
+
+            // Disable all option buttons
+            document.querySelectorAll('.option').forEach(btn => btn.disabled = true);
+
+            sendMessage({
+                action: 'answer',
+                optionIndex: optionIndex,
+                timestamp: now,
+                playerNumber: gameState.playerNumber
+            });
+
+            // If host, check if we should resolve
+            if (gameState.isHost) {
+                setTimeout(() => {
+                    if (gameState.p1Answer !== null || gameState.p2Answer !== null) {
+                        resolveQuestion();
+                    }
+                }, 500);
+            }
+
+            saveGameState();
+        }
+
+        function handleRemoteAnswer(data) {
+            if (data.playerNumber === 1) {
+                gameState.p1Answer = data.optionIndex;
+                gameState.p1AnswerTime = data.timestamp;
+            } else {
+                gameState.p2Answer = data.optionIndex;
+                gameState.p2AnswerTime = data.timestamp;
+            }
+
+            if (gameState.isHost) {
+                setTimeout(() => {
+                    if (gameState.p1Answer !== null || gameState.p2Answer !== null) {
+                        resolveQuestion();
+                    }
+                }, 500);
+            }
+
+            saveGameState();
+        }
+
+        function resolveQuestion() {
+            if (gameState.questionAnswered) return;
+            clearInterval(gameState.timerInterval);
+            gameState.questionAnswered = true;
+
+            if (!gameState.isHost) return;
+
+            const q = gameState.currentQuestion;
+            let p1Correct = gameState.p1Answer === q.correct;
+            let p2Correct = gameState.p2Answer === q.correct;
+            let scorerName = '';
+
+            // Determine winner
+            if (p1Correct && p2Correct) {
+                // Both correct - who was faster?
+                if (gameState.p1AnswerTime < gameState.p2AnswerTime) {
+                    gameState.p1Score++;
+                    scorerName = gameState.p1Name;
+                } else {
+                    gameState.p2Score++;
+                    scorerName = gameState.p2Name;
+                }
+            } else if (p1Correct) {
+                gameState.p1Score++;
+                scorerName = gameState.p1Name;
+            } else if (p2Correct) {
+                gameState.p2Score++;
+                scorerName = gameState.p2Name;
+            }
+
+            sendMessage({
+                action: 'answerResult',
+                p1Answer: gameState.p1Answer,
+                p2Answer: gameState.p2Answer,
+                correctIndex: q.correct,
+                p1Score: gameState.p1Score,
+                p2Score: gameState.p2Score,
+                scorerName: scorerName
+            });
+
+            showResult({
+                p1Answer: gameState.p1Answer,
+                p2Answer: gameState.p2Answer,
+                correctIndex: q.correct,
+                p1Score: gameState.p1Score,
+                p2Score: gameState.p2Score,
+                scorerName: scorerName
+            });
+
+            saveGameState();
+        }
+
+        function showResult(data) {
+            const q = gameState.currentQuestion;
+            gameState.p1Score = data.p1Score;
+            gameState.p2Score = data.p2Score;
+
+            let resultMsg = 'No points this round';
+            if (data.scorerName) {
+                resultMsg = `${data.scorerName} gets the point!`;
+            }
+
+            document.getElementById('resultMessage').textContent = resultMsg;
+            document.getElementById('correctAnswerDisplay').innerHTML =
+                `<strong>Correct Answer:</strong> ${q.options[data.correctIndex]}`;
+            document.getElementById('scoreUpdateDisplay').innerHTML =
+                `<strong>${gameState.p1Name}:</strong> ${gameState.p1Score} | <strong>${gameState.p2Name}:</strong> ${gameState.p2Score}`;
+
+            // Highlight correct answer
+            document.querySelectorAll('.option').forEach((btn, idx) => {
+                if (idx === data.correctIndex) {
+                    btn.classList.add('correct');
+                } else if ((idx === gameState.p1Answer && gameState.playerNumber === 1) ||
+                          (idx === gameState.p2Answer && gameState.playerNumber === 2)) {
+                    if (idx !== data.correctIndex) {
+                        btn.classList.add('wrong');
+                    }
+                }
+                btn.disabled = true;
+            });
+
+            updateGameHeader();
+            document.getElementById('resultOverlay').classList.add('active');
+            document.getElementById('readyButton').disabled = false;
+            document.getElementById('waitingMessage').style.display = 'none';
+
+            // Check for round win
+            if (gameState.p1Score >= 7 || gameState.p2Score >= 7) {
+                setTimeout(() => {
+                    endRound();
+                }, 2000);
+            }
+
+            saveGameState();
+        }
+
+        function playerReady() {
+            gameState.p1Ready = gameState.playerNumber === 1 ? true : gameState.p1Ready;
+            gameState.p2Ready = gameState.playerNumber === 2 ? true : gameState.p2Ready;
+
+            document.getElementById('readyButton').disabled = true;
+            document.getElementById('waitingMessage').style.display = 'block';
+
+            sendMessage({
+                action: 'ready',
+                playerNumber: gameState.playerNumber
+            });
+
+            if (gameState.isHost) {
+                setTimeout(() => {
+                    if (gameState.p1Ready && gameState.p2Ready) {
+                        sendMessage({ action: 'bothReady' });
+                        resetForNextQuestion();
+                    }
+                }, 500);
+            }
+
+            saveGameState();
+        }
+
+        function updateReadinessDisplay() {
+            const waiting = gameState.playerNumber === 1 ? !gameState.p2Ready : !gameState.p1Ready;
+            if (waiting) {
+                const waitingName = gameState.playerNumber === 1 ? gameState.p2Name : gameState.p1Name;
+                document.getElementById('waitingMessage').textContent =
+                    `Waiting for ${waitingName}...`;
+            }
+        }
+
+        function resetForNextQuestion() {
+            document.getElementById('resultOverlay').classList.remove('active');
+
+            // Check for round win
+            if (gameState.p1Score >= 7 || gameState.p2Score >= 7) {
+                endRound();
+                return;
+            }
+
+            if (gameState.isHost) {
+                loadNextQuestion();
+            }
+
+            saveGameState();
+        }
+
+        function endRound() {
+            let loser, dare;
+            if (gameState.p1Score >= 7) {
+                loser = gameState.p2Name;
+                gameState.p1Rounds++;
+            } else {
+                loser = gameState.p1Name;
+                gameState.p2Rounds++;
+            }
+
+            dare = darePool[Math.floor(Math.random() * darePool.length)];
+
+            if (gameState.isHost) {
+                sendMessage({
+                    action: 'roundWin',
+                    winner: gameState.p1Score >= 7 ? gameState.p1Name : gameState.p2Name,
+                    loser: loser,
+                    dare: dare,
+                    p1Rounds: gameState.p1Rounds,
+                    p2Rounds: gameState.p2Rounds
+                });
+            }
+
+            displayRoundWinner({
+                winner: gameState.p1Score >= 7 ? gameState.p1Name : gameState.p2Name,
+                loser: loser,
+                dare: dare,
+                p1Rounds: gameState.p1Rounds,
+                p2Rounds: gameState.p2Rounds
+            });
+
+            saveGameState();
+        }
+
+        function displayRoundWinner(data) {
+            document.getElementById('roundWinnerName').textContent = data.winner;
+            document.getElementById('roundsTracker').textContent =
+                `Rounds: ${data.p1Rounds} - ${data.p2Rounds}`;
+            document.getElementById('dareText').textContent = data.dare;
+
+            if (data.p1Rounds >= 3 || data.p2Rounds >= 3) {
+                setTimeout(() => {
+                    displayGameOver({
+                        winner: data.p1Rounds >= 3 ? gameState.p1Name : gameState.p2Name,
+                        p1Rounds: data.p1Rounds,
+                        p2Rounds: data.p2Rounds
+                    });
+                }, 3000);
+            } else {
+                showScreen('roundWinner');
+            }
+        }
+
+        function nextRound() {
+            gameState.p1Score = 0;
+            gameState.p2Score = 0;
+            gameState.currentRound++;
+            gameState.usedQuestionIds.clear();
+
+            updateGameHeader();
+
+            if (gameState.isHost) {
+                loadNextQuestion();
+            }
+
+            showScreen('game');
+            saveGameState();
+        }
+
+        function displayGameOver(data) {
+            document.getElementById('championName').textContent = data.winner;
+            document.getElementById('finalP1Name').textContent = gameState.p1Name;
+            document.getElementById('finalP1Rounds').textContent = data.p1Rounds;
+            document.getElementById('finalP2Name').textContent = gameState.p2Name;
+            document.getElementById('finalP2Rounds').textContent = data.p2Rounds;
+
+            showScreen('gameOver');
+        }
+
+        function showHowToPlay() {
+            showScreen('howToPlay');
+        }
+
+        function backToHome() {
+            clearInterval(gameState.timerInterval);
+            clearGameState();
+            gameState.p1Score = 0;
+            gameState.p2Score = 0;
+            gameState.p1Rounds = 0;
+            gameState.p2Rounds = 0;
+            gameState.usedQuestionIds.clear();
+            showScreen('landing');
+        }
+
+        // ==================== INITIALIZATION ====================
+        window.addEventListener('load', function() {
+            if (loadGameState()) {
+                if (gameState.screen === 'game' || gameState.screen === 'reconnecting') {
+                    showScreen('reconnecting');
+                    // Attempt reconnection
+                    setTimeout(() => {
+                        if (!gameState.conn || !gameState.conn.open) {
+                            clearGameState();
+                            showScreen('landing');
+                        }
+                    }, 5000);
+                } else {
+                    showScreen(gameState.screen);
+                }
+            }
+        });
+
+        // Prevent accidental page reload during game
+        window.addEventListener('beforeunload', function(e) {
+            if (gameState.screen === 'game' || gameState.screen === 'roundWinner') {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
