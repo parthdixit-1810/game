@@ -17,7 +17,9 @@ function initializeSocket() {
     // Connect to Socket.IO server - adjust URL for Vercel
     const isProduction = window.location.hostname !== 'localhost';
     const serverUrl = isProduction ? window.location.origin : 'http://localhost:3000';
-    gameState.socket = io(serverUrl);
+    gameState.socket = io(serverUrl, {
+        path: isProduction ? '/api/socket.io' : '/socket.io'
+    });
     
     gameState.socket.on('connect', () => {
         console.log('Connected to server');
