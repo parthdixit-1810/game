@@ -132,7 +132,7 @@ function createGame() {
 }
 
 function joinGame() {
-    const roomCode = document.getElementById('roomCode').value.trim();
+    const roomCode = document.getElementById('joinCode').value.trim();
     const playerName = document.getElementById('playerName').value.trim();
     
     if (!roomCode || !playerName) {
