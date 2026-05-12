@@ -113,6 +113,12 @@ function createGame() {
         return;
     }
 
+    // Check if socket is connected
+    if (!gameState.socket || !gameState.socket.connected) {
+        alert('Connecting to server... Please try again in a moment.');
+        return;
+    }
+
     gameState.socket.emit('createRoom', hostName, (response) => {
         if (response.success) {
             gameState.roomCode = response.roomCode;
@@ -126,28 +132,27 @@ function createGame() {
 }
 
 function joinGame() {
+    const roomCode = document.getElementById('roomCode').value.trim();
     const playerName = document.getElementById('playerName').value.trim();
-    const joinCode = document.getElementById('joinCode').value.trim();
-
-    if (!playerName || !joinCode) {
-        alert('Please enter your name and room code');
+    
+    if (!roomCode || !playerName) {
+        alert('Please enter both room code and your name');
         return;
     }
 
-    if (joinCode.length !== 4) {
-        alert('Please enter a valid 4-digit room code');
+    // Check if socket is connected
+    if (!gameState.socket || !gameState.socket.connected) {
+        alert('Connecting to server... Please try again in a moment.');
         return;
     }
 
-    gameState.socket.emit('joinRoom', { roomCode: joinCode, playerName }, (response) => {
+    gameState.socket.emit('joinRoom', { roomCode, playerName }, (response) => {
         if (response.success) {
-            gameState.roomCode = joinCode;
+            gameState.roomCode = roomCode;
             gameState.player = { name: playerName, isHost: false };
-            gameState.players = response.players;
-            updatePlayersDisplay();
             showScreen('waiting');
         } else {
-            alert(response.error || 'Failed to join room');
+            alert(response.message || 'Failed to join room');
         }
     });
 }
